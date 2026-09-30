@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>DataWing Airlines — Smart Scheduling</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+
+<!-- LOADER -->
+<div id="loader" class="loader">
+  <div class="loader-inner">
+    <div class="loader-plane">✈</div>
+    <div class="loader-name">DataWing Airlines</div>
+    <div class="loader-runway"><div class="loader-jet" id="loaderJet"></div></div>
+    <div class="loader-msg" id="loaderMsg">Preparing for takeoff...</div>
+  </div>
+</div>
+
+<!-- ══ TOP HEADER BAR ══ -->
+<div class="header-bar">
+  <div class="header-inner">
+    <div class="hb-logo">
+      <span class="logo-icon">✈</span>
+      <div class="logo-text">
+        <span class="logo-name">DataWing</span>
+        <span class="logo-tag">Airlines</span>
+      </div>
+    </div>
+    <div class="hb-center">
+      <div class="live-clock" id="liveClock"></div>
+      <div class="socket-pill" id="socketPill">● Connecting</div>
+    </div>
+    <div class="hb-right">
+      <button class="theme-btn" id="themeBtn" onclick="toggleTheme()">
+        <span id="themeIcon">☀</span>
+        <span id="themeLabel">Light</span>
+      </button>
+      <div id="authBtns" class="auth-row">
+        <button class="btn-ghost sm" onclick="openModal('loginModal')">Login</button>
+        <button class="btn-sky sm" onclick="openModal('registerModal')">Register</button>
+      </div>
+      <div id="userBtns" class="user-row hidden">
+        <div class="user-chip">
+          <span class="uc-avatar" id="ucAvatar">U</span>
+          <span class="uc-name" id="ucName">User</span>
+          <span class="uc-role" id="ucRole">customer</span>
+        </div>
+        <button class="btn-ghost sm" onclick="logout()">Sign Out</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ NAVIGATION TABS ══ -->
+<nav class="navtabs" id="navtabs">
+  <div class="navtabs-inner">
+    <div class="tabs-group">
+      <button class="tab active" data-page="dashboard"  onclick="goTo('dashboard')">  🏠 Dashboard</button>
+      <button class="tab"        data-page="flights"    onclick="goTo('flights')">    ✈ Flights</button>
+      <button class="tab"        data-page="booking"    onclick="goTo('booking')">    🎫 Book Ticket</button>
+      <button class="tab"        data-page="mybookings" onclick="goTo('mybookings')"> 📋 My Bookings</button>
+      <button class="tab"        data-page="seats"      onclick="goTo('seats')">      💺 Seats</button>
+      <button class="tab"        data-page="payment"    onclick="goTo('payment')">    💳 Payments</button>
+      <button class="tab"        data-page="support"    onclick="goTo('support')">    🎧 Support</button>
+    </div>
+    <div class="tabs-divider"></div>
+    <div class="tabs-group">
+      <button class="tab sched-tab" data-page="scheduling"  onclick="goTo('scheduling')"> ⚙ Scheduler</button>
+      <button class="tab sched-tab" data-page="flightsched" onclick="goTo('flightsched')">🛫 Flight Sched</button>
+      <button class="tab sched-tab" data-page="emergency"   onclick="goTo('emergency')">  🚨 Emergency</button>
+      <button class="tab sched-tab" data-page="analytics"   onclick="goTo('analytics')">  📊 Analytics</button>
+      <button class="tab admin-tab admin-only hidden" data-page="admin" onclick="goTo('admin')">🔐 Admin</button>
+    </div>
+  </div>
+</nav>
+
+<!-- NOTIFICATION -->
+<div id="notifBar" class="notif-bar hidden"></div>
+
+<!-- ══ BREADCRUMB ══ -->
+<div class="breadcrumb-bar" id="breadcrumbBar">
+  <div class="bc-inner">
+    <span class="bc-home">DataWing</span>
+    <span class="bc-sep">›</span>
+    <span class="bc-current" id="bcCurrent">Dashboard</span>
+    <span class="bc-algo" id="bcAlgo"></span>
+  </div>
+</div>
+
+<!-- ══ MAIN CONTENT ══ -->
+<main class="main-content">
+
+<!-- ════════════════ DASHBOARD ════════════════ -->
+<section class="page active" id="page-dashboard">
+
+  <!-- Hero -->
+  <div class="page-hero dashboard-hero">
+    <div class="ph-grid"></div>
+    <div class="ph-content">
+      <div class="ph-left">
+        <p class="ph-eyebrow">Welcome to DataWing Airlines</p>
+        <h1 class="ph-title" id="heroTitle">Smart Airline Management System</h1>
+        <p class="ph-desc">Powered by 6 CPU Scheduling Algorithms — FCFS · Round Robin · SJF · SRTF · Priority NP · Priority Preemptive</p>
+        <div class="algo-badges">
+          <span class="ab fcfs">FCFS</span><span class="ab rr">Round Robin</span>
+          <span class="ab sjf">SJF</span><span class="ab srtf">SRTF</span>
+          <span class="ab pri">Priority NP</span><span class="ab pripre">Priority Pre</span>
+        </div>
+        <div class="ph-ctas">
+          <button class="btn-sky lg" onclick="seedFlights()">⚡ Load Demo Data</button>
+          <button class="btn-outline-w lg" onclick="goTo('scheduling')">⚙ Try Scheduler</button>
+        </div>
+      </div>
+      <div class="ph-right">
+        <div class="dep-board">
+          <div class="db-title">◼ DEPARTURES</div>
+          <div class="db-body" id="depBoard">
+            <div class="db-row db-hdr"><span>Flight</span><span>Route</span><span>Time</span><span>Gate</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats strip -->
+  <div class="stats-strip">
+    <div class="ss-card"><span class="ss-icon">✈</span><span class="ss-val" id="st-flights">0</span><span class="ss-lbl">Flights</span></div>
+    <div class="ss-card"><span class="ss-icon">🎫</span><span class="ss-val" id="st-bookings">0</span><span class="ss-lbl">Bookings</span></div>
+    <div class="ss-card"><span class="ss-icon">👥</span><span class="ss-val" id="st-users">0</span><span class="ss-lbl">Passengers</span></div>
+    <div class="ss-card"><span class="ss-icon">💰</span><span class="ss-val" id="st-revenue">$0</span><span class="ss-lbl">Revenue</span></div>
+    <div class="ss-card"><span class="ss-icon">⏳</span><span class="ss-val" id="st-pending">0</span><span class="ss-lbl">Pending</span></div>
+    <div class="ss-card"><span class="ss-icon">🎧</span><span class="ss-val" id="st-complaints">0</span><span class="ss-lbl">Tickets</span></div>
+  </div>
+
+  <!-- Content -->
+  <div class="content-grid-2">
+    <div class="content-card">
+      <div class="cc-head"><h3 class="cc-title">How Scheduling Algorithms Power DataWing</h3></div>
+      <div class="algo-grid-6">
+        <div class="ag-card ag-fcfs"><div class="ag-icon">📥</div><div class="ag-name">FCFS</div><div class="ag-use">Ticket Booking</div><div class="ag-desc">Processes booking requests in arrival order — first in, first served</div></div>
+        <div class="ag-card ag-rr"><div class="ag-icon">🔄</div><div class="ag-name">Round Robin</div><div class="ag-use">Payments + Flight Sched</div><div class="ag-desc">Each request gets equal time slice — fair runway and payment distribution</div></div>
+        <div class="ag-card ag-sjf"><div class="ag-icon">⚡</div><div class="ag-name">SJF</div><div class="ag-use">Flight Operations</div><div class="ag-desc">Short flights and quick operations execute first — minimises avg wait</div></div>
+        <div class="ag-card ag-srtf"><div class="ag-icon">🏃</div><div class="ag-name">SRTF</div><div class="ag-use">Emergency + Payment</div><div class="ag-desc">Shortest remaining task preempts longer ones — optimal throughput</div></div>
+        <div class="ag-card ag-pri"><div class="ag-icon">⭐</div><div class="ag-name">Priority NP</div><div class="ag-use">Seat Allocation</div><div class="ag-desc">VIP passengers get seats before business, before economy</div></div>
+        <div class="ag-card ag-pripre"><div class="ag-icon">🚨</div><div class="ag-name">Priority Pre</div><div class="ag-use">Emergency Flights</div><div class="ag-desc">Emergency flights immediately preempt all scheduled operations</div></div>
+      </div>
+    </div>
+    <div class="content-card">
+      <div class="cc-head"><h3 class="cc-title">Live Activity</h3></div>
+      <div class="activity-list" id="activityFeed"><p class="empty-t">Activity will appear here...</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ FLIGHTS ════════════════ -->
+<section class="page" id="page-flights">
+  <div class="page-hero sm-hero blue-hero">
+    <div class="ph-grid"></div>
+    <div class="sm-hero-content">
+      <h2 class="sm-title">Flight Management</h2>
+      <p class="sm-sub">Priority & SJF algorithms manage flight operations and scheduling</p>
+      <div class="sm-acts">
+        <button class="btn-sky" onclick="seedFlights()">⚡ Load Demo Flights</button>
+        <button class="btn-outline-w staff-only hidden" onclick="openModal('addFlightModal')">+ Add Flight</button>
+      </div>
+    </div>
+  </div>
+  <div class="page-body">
+    <div class="search-strip">
+      <input class="fi" id="srchOrigin" placeholder="From city..."/>
+      <input class="fi" id="srchDest"   placeholder="To city..."/>
+      <select class="fs" id="srchStatus">
+        <option value="">All Status</option>
+        <option value="scheduled">Scheduled</option>
+        <option value="delayed">Delayed</option>
+        <option value="departed">Departed</option>
+      </select>
+      <button class="btn-sky" onclick="loadFlights()">🔍 Search</button>
+    </div>
+    <div class="content-card">
+      <div class="table-wrap">
+        <table class="dtable">
+          <thead><tr><th>Flight</th><th>Origin</th><th>Destination</th><th>Departure</th><th>Duration</th><th>Seats</th><th>Economy</th><th>Business</th><th>Status</th><th>Priority</th><th>Book</th></tr></thead>
+          <tbody id="flightsTbody"><tr class="erow"><td colspan="11">Click "Load Demo Flights" to see flights</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ BOOKING ════════════════ -->
+<section class="page" id="page-booking">
+  <div class="page-hero sm-hero green-hero">
+    <div class="ph-grid"></div>
+    <div class="sm-hero-content">
+      <h2 class="sm-title">Book a Ticket</h2>
+      <p class="sm-sub">FCFS, Round Robin, and SJF process your booking request</p>
+      <div class="algo-tag-row"><span class="atag">FCFS</span><span class="atag">Round Robin</span><span class="atag">SJF</span><span class="atag">Priority</span></div>
+    </div>
+  </div>
+  <div class="page-body">
+    <div class="two-col-layout">
+      <div class="content-card">
+        <div class="cc-head"><h3 class="cc-title">Passenger Details</h3></div>
+        <div class="form-2col">
+          <div class="fg"><label class="fl">Select Flight</label><select class="fs full" id="bkFlight" onchange="updatePrice()"><option value="">— Select Flight —</option></select></div>
+          <div class="fg"><label class="fl">Seat Class</label>
+            <select class="fs full" id="bkClass" onchange="updatePrice()">
+              <option value="economy">Economy</option>
+              <option value="business">Business</option>
+              <option value="first">First Class</option>
+            </select></div>
+          <div class="fg"><label class="fl">Passenger Name</label><input class="fi full" id="bkName" placeholder="Full Name"/></div>
+          <div class="fg"><label class="fl">Passport</label><input class="fi full" id="bkPassport" placeholder="AB1234567"/></div>
+        </div>
+        <div class="price-panel" id="priceDisplay">Select a flight to see price</div>
+        <div id="bkError" class="errmsg"></div>
+        <button class="btn-sky full mt" onclick="bookTicket()">🎫 Confirm Booking</button>
+      </div>
+      <div class="content-card">
+        <div class="cc-head"><h3 class="cc-title">Booking Queue Simulation</h3></div>
+        <p class="card-sub">See how algorithms process booking requests</p>
+        <div class="algo-info-strips">
+          <div class="ais ais-fcfs"><strong>FCFS:</strong> Requests in exact arrival order</div>
+          <div class="ais ais-rr"><strong>Round Robin:</strong> Equal time slices — prevents monopoly</div>
+          <div class="ais ais-sjf"><strong>SJF:</strong> Simple bookings before complex ones</div>
+          <div class="ais ais-pri"><strong>Priority:</strong> VIP bookings jump the queue</div>
+        </div>
+        <div class="ctrl-row">
+          <select class="fs" id="bkAlgo">
+            <option value="fcfs">FCFS</option><option value="rr">Round Robin</option>
+            <option value="sjf">SJF</option><option value="priority">Priority (VIP First)</option>
+          </select>
+          <input class="fi sm" type="number" id="bkQuantum" value="2" min="1" placeholder="q"/>
+          <button class="btn-sky" onclick="simBookingQueue()">▶ Simulate</button>
+        </div>
+        <div class="gantt-box" id="bkGantt"><p class="empty-t">Run simulation to see Gantt chart</p></div>
+        <div class="mstats" id="bkStats"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ MY BOOKINGS ════════════════ -->
+<section class="page" id="page-mybookings">
+  <div class="page-hero sm-hero navy-hero">
+    <div class="ph-grid"></div>
+    <div class="sm-hero-content">
+      <h2 class="sm-title">My Bookings</h2>
+      <p class="sm-sub">View and manage all your bookings</p>
+      <button class="btn-outline-w sm" onclick="loadMyBookings()">↻ Refresh</button>
+    </div>
+  </div>
+  <div class="page-body">
+    <div class="content-card">
+      <div class="table-wrap">
+        <table class="dtable">
+          <thead><tr><th>Booking Ref</th><th>Flight</th><th>Route</th><th>Class</th><th>Price</th><th>Status</th><th>Payment</th><th>Action</th></tr></thead>
+          <tbody id="myBookingsTbody"><tr class="erow"><td colspan="8">Login to see your bookings</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ SEATS ════════════════ -->
+<section class="page" id="page-seats">
+  <div class="page-hero sm-hero purple-hero">
+    <div class="ph-grid"></div>
+    <div class="sm-hero-content">
+      <h2 class="sm-title">Seat Allocation</h2>
+      <p class="sm-sub">Priority scheduling assigns VIP and Business class passengers first</p>
+      <div class="algo-tag-row"><span class="atag">Priority NP</span><span class="atag">Priority Pre</span><span class="atag">FCFS</span></div>
+    </div>
+  </div>
+  <div class="page-body">
+    <div class="two-col-layout">
+      <div class="content-card">
+        <div class="cc-head"><h3 class="cc-title">Aircraft Seat Map</h3></div>
+        <div class="seat-legend">
+          <span class="sl first">■ First Class (1-2)</span>
+          <span class="sl biz">■ Business (3-7)</span>
+          <span class="sl eco">■ Economy (8-25)</span>
+          <span class="sl occ">■ Occupied</span>
+        </div>
+        <div class="plane-body"><div class="plane-nose">✈</div><div id="seatMap" class="seat-grid"></div></div>
+        <div class="seat-stats" id="seatStats"></div>
+      </div>
+      <div class="content-card">
+        <div class="cc-head"><h3 class="cc-title">Seat Allocation Simulation</h3></div>
+        <div class="algo-info-strips">
+          <div class="ais ais-pri"><strong>Priority NP:</strong> First Class → Business → Economy</div>
+          <div class="ais ais-pripre"><strong>Priority Pre:</strong> VIP arrival immediately preempts</div>
+          <div class="ais ais-fcfs"><strong>FCFS:</strong> Seats in check-in order</div>
+        </div>
+        <div class="ctrl-row">
+          <select class="fs" id="seatAlgo">
+            <option value="priority">Priority NP</option>
+            <option value="priority_pre">Priority Preemptive</option>
+            <option value="fcfs">FCFS</option>
+          </select>
+          <button class="btn-sky" onclick="simulateSeatAlloc()">▶ Allocate</button>
+        </div>
+        <div class="queue-3">
+          <div class="q3-box"><div class="q3-lbl">Waiting</div><div id="seatWaitQ" class="q3-items"></div></div>
+          <div class="q3-arrow">→</div>
+          <div class="q3-box q3-done"><div class="q3-lbl">Allocated ✓</div><div id="seatDoneQ" class="q3-items"></div></div>
+        </div>
+        <div class="gantt-box mt" id="seatGantt"><p class="empty-t">Run to see allocation timeline</p></div>
+        <div class="mstats" id="seatStats2"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ PAYMENT ════════════════ -->
+<section class="page" id="page-payment">
+  <div class="page-hero sm-hero orange-hero">
+    <div class="ph-grid"></div>
+    <div class="sm-hero-content">
+      <h2 class="sm-title">Payment Processing</h2>
+      <p class="sm-sub">Round Robin ensures fairness; SRTF handles fastest transactions first</p>
+      <div class="algo-tag-row"><span class="atag">Round Robin</span><span class="atag">SRTF</span><span class="atag">SJF</span><span class="atag">Priority</span></div>
+    </div>
+  </div>
+  <div class="page-body">
+    <div class="two-col-layout">
+      <div class="content-card">
+        <div class="cc-head"><h3 class="cc-title">Make Payment</h3></div>
+        <div class="form-2col">
+          <div class="fg"><label class="fl">Booking</label><select class="fs full" id="payBooking"><option value="">— Select —</option></select></div>
+          <div class="fg"><label class="fl">Method</label>
+            <select class="fs full" id="payMethod">
+              <option value="card">💳 Card</option><option value="paypal">🅿 PayPal</option>
+              <option value="bank">🏦 Bank</option><option value="wallet">👛 Wallet</option>
+            </select></div>
+        </div>
+        <div id="payError" class="errmsg"></div>
+        <button class="btn-sky full mt" onclick="makePayment()">💳 Process Payment</button>
+        <div class="cc-head mt"><h3 class="cc-title" style="font-size:.84rem">Payment History</h3></div>
+        <div class="table-wrap">
+          <table class="dtable">
+            <thead><tr><th>Ref</th><th>Amount</th><th>Method</th><th>Status</th><th>Date</th></tr></thead>
+            <tbody id="payHistTbody"><tr class="erow"><td colspan="5">No payments yet</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="content-card">
+        <div class="cc-head"><h3 class="cc-title">Payment Queue Simulation</h3></div>
+        <div class="algo-info-strips">
+          <div class="ais ais-rr"><strong>Round Robin:</strong> Equal processing time per transaction</div>
+          <div class="ais ais-srtf"><strong>SRTF:</strong> Fastest payments complete first</div>
+          <div class="ais ais-sjf"><strong>SJF:</strong> Minimum transactions processed first</div>
+          <div class="ais ais-pri"><strong>Priority:</strong> Premium members first</div>
+        </div>
+        <div class="ctrl-row">
+          <select class="fs" id="payAlgo">
+            <option value="rr">Round Robin</option><option value="srtf">SRTF</option>
+            <option value="sjf">SJF</option><option value="priority">Priority</option><option value="fcfs">FCFS</option>
+          </select>
+          <input class="fi sm" type="number" id="payQuantum" value="2" min="1"/>
+          <button class="btn-sky" onclick="simPaymentQueue()">▶ Simulate</button>
+        </div>
+        <div class="gantt-box" id="payGantt"><p class="empty-t">Run simulation to see chart</p></div>
+        <div class="mstats" id="payStats"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ SUPPORT ════════════════ -->
+<section class="page" id="page-support">
+  <div class="page-hero sm-hero teal-hero">
+    <div class="ph-grid"></div>
+    <div class="sm-hero-content">
+      <h2 class="sm-title">Customer Support</h2>
+      <p class="sm-sub">Priority scheduling resolves urgent complaints first</p>
+      <div class="algo-tag-row"><span class="atag">Priority NP</span><span class="atag">Priority Pre</span><span class="atag">FCFS</span><span class="atag">SJF</span></div>
+    </div>
+  </div>
+  <div class="page-body">
+    <div class="two-col-layout">
+      <div class="content-card">
+        <div class="cc-head"><h3 class="cc-title">Submit Complaint</h3></div>
+        <div class="form-2col">
+          <div class="fg"><label class="fl">Category</label>
+            <select class="fs full" id="cmpCategory">
+              <option value="booking">✈ Booking</option><option value="flight">🛫 Flight</option>
+              <option value="payment">💳 Payment</option><option value="seat">💺 Seat</option><option value="other">📝 Other</option>
+            </select></div>
+          <div class="fg"><label class="fl">Subject</label><input class="fi full" id="cmpSubject" placeholder="Brief description"/></div>
+          <div class="fg" style="grid-column:1/-1"><label class="fl">Message</label><textarea class="fi full" id="cmpMessage" rows="4" placeholder="Describe your issue..."></textarea></div>
+        </div>
+        <div id="cmpError" class="errmsg"></div>
+        <button class="btn-sky full mt" onclick="submitComplaint()">📤 Submit</button>
+        <div class="cc-head mt"><h3 class="cc-title" style="font-size:.84rem">My Tickets</h3></div>
+        <div class="table-wrap">
+          <table class="dtable">
+            <thead><tr><th>Ticket</th><th>Category</th><th>Subject</th><th>Status</th></tr></thead>
+            <tbody id="cmpTbody"><tr class="erow"><td colspan="4">No tickets yet</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="content-card">
+        <div class="cc-head"><h3 class="cc-title">Support Queue Simulation</h3></div>
+        <div class="algo-info-strips">
+          <div class="ais ais-pri"><strong>Priority NP:</strong> Urgent safety complaints first</div>
+          <div class="ais ais-pripre"><strong>Priority Pre:</strong> Critical issues jump queue instantly</div>
+          <div class="ais ais-fcfs"><strong>FCFS:</strong> Tickets in submission order</div>
+          <div class="ais ais-sjf"><strong>SJF:</strong> Quick queries resolved first</div>
+        </div>
+        <div class="ctrl-row">
+          <select class="fs" id="cmpAlgo">
+            <option value="priority">Priority NP</option><option value="priority_pre">Priority Pre</option>
+            <option value="fcfs">FCFS</option><option value="sjf">SJF</option>
+          </select>
+          <button class="btn-sky" onclick="simComplaintQueue()">▶ Simulate</button>
+        </div>
+        <div class="gantt-box" id="cmpGantt"><p class="empty-t">Run to see queue chart</p></div>
+        <div class="mstats" id="cmpStats"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ SCHEDULER ════════════════ -->
+<section class="page" id="page-scheduling">
+  <div class="page-hero sm-hero indigo-hero">
+    <div class="ph-grid"></div>
+    <div class="sm-hero-content">
+      <h2 class="sm-title">CPU Task Scheduler</h2>
+      <p class="sm-sub">Visualize all 6 scheduling algorithms with real airline tasks</p>
+    </div>
+  </div>
+  <div class="page-body">
+    <div class="content-card mb">
+      <div class="cc-head"><h3 class="cc-title">Configure Simulation</h3></div>
+      <div class="config-strip">
+        <div class="fg"><label class="fl">Department</label>
+          <select class="fs" id="schedModule" onchange="onModuleChange()">
+            <option value="booking">Ticket Booking</option><option value="flight">Flight Operations</option>
+            <option value="payment">Payment Processing</option><option value="support">Customer Support</option>
+            <option value="seat">Seat Allocation</option>
+          </select></div>
+        <div class="fg"><label class="fl">Algorithm</label><select class="fs" id="schedAlgo" onchange="onAlgoChange()"></select></div>
+        <div class="fg" id="quantumGrp"><label class="fl">Quantum</label><input class="fi sm" type="number" id="schedQuantum" value="2" min="1"/></div>
+        <button class="btn-sky" onclick="runModuleSchedule()">▶ Run Simulation</button>
+      </div>
+      <div class="algo-detail" id="algoDetailBox"></div>
+    </div>
+
+    <div class="two-col-layout mb">
+      <div class="content-card">
+        <div class="cc-head">
+          <h3 class="cc-title">Task Queue</h3>
+          <div class="cc-acts">
+            <button class="btn-ghost sm" onclick="genRandomTasks()">⚡ Random</button>
+            <button class="btn-ghost sm danger" onclick="clearTasks()">🗑 Clear</button>
+          </div>
+        </div>
+        <div class="task-row">
+          <input class="fi" id="taskId" placeholder="ID (T1)"/>
+          <input class="fi" id="taskLabel" placeholder="Label"/>
+          <input class="fi sm" type="number" id="taskArrival" placeholder="Arrival" value="0"/>
+          <input class="fi sm" type="number" id="taskBurst" placeholder="Burst" value="3"/>
+          <input class="fi sm" type="number" id="taskPriority" placeholder="Pri" value="2"/>
+          <button class="btn-sky sm" onclick="addTask()">+</button>
+        </div>
+        <div class="table-wrap mt">
+          <table class="dtable"><thead><tr><th>ID</th><th>Label</th><th>Arrival</th><th>Burst</th><th>Priority</th><th></th></tr></thead>
+          <tbody id="taskTbody"><tr class="erow"><td colspan="6">No tasks — click Random</td></tr></tbody></table>
+        </div>
+      </div>
+      <div class="content-card">
+        <div class="cc-head"><h3 class="cc-title">Process State Queues</h3></div>
+        <div class="state-qs">
+          <div class="sq"><div class="sq-lbl">Ready Queue</div><div id="qReady" class="sq-chips"></div></div>
+          <div class="sq-arr">→</div>
+          <div class="sq sq-run"><div class="sq-lbl">CPU Running</div><div id="qRunning" class="sq-chips"></div></div>
+          <div class="sq-arr">→</div>
+          <div class="sq sq-done"><div class="sq-lbl">Completed</div><div id="qDone" class="sq-chips"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="content-card mb">
+      <div class="cc-head"><h3 class="cc-title">Gantt Chart</h3></div>
+      <div class="gantt-box" id="schedGantt"><p class="empty-t">Run simulation to see Gantt chart</p></div>
+    </div>
+
+    <div class="content-card">
+      <div class="cc-head"><h3 class="cc-title">Results</h3></div>
+      <div class="mstats mb" id="schedStats"></div>
+      <div class="table-wrap">
+        <table class="dtable"><thead><tr><th>Task</th><th>Label</th><th>Arrival</th><th>Burst</th><th>Priority</th><th>Completion</th><th>Turnaround</th><th>Waiting</th><th>Response</th></tr></thead>
+        <tbody id="schedResultTbody"><tr class="erow"><td colspan="9">No results yet</td></tr></tbody></table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ FLIGHT SCHEDULING ════════════════ -->
+<section class="page" id="page-flightsched">
+  <div class="page-hero sm-hero sky-hero">
+    <div class="ph-grid"></div>
+    <div class="sm-hero-content">
+      <h2 class="sm-title">Flight Scheduling Module</h2>
+      <p class="sm-sub">Round Robin distributes runway time; Priority handles emergency departures</p>
+      <div class="algo-tag-row"><span class="atag">Round Robin</span><span class="atag">Priority</span><span class="atag">SJF</span><span class="atag">SRTF</span><span class="atag">FCFS</span></div>
+    </div>
+  </div>
+  <div class="page-body">
+    <div class="module-explain-strip">
+      <div class="mes-card mes-rr"><div class="mes-tag">RR</div><div><div class="mes-title">Round Robin — Runway Allocation</div><div class="mes-desc">Each flight gets equal runway time slot. No single flight monopolizes during peak hours.</div></div></div>
+      <div class="mes-card mes-pri"><div class="mes-tag">PRI</div><div><div class="mes-title">Priority — Emergency Departures</div><div class="mes-desc">Emergency (P1) and VIP (P2) flights depart before domestic scheduled (P3).</div></div></div>
+      <div class="mes-card mes-sjf"><div class="mes-tag">SJF</div><div><div class="mes-title">SJF — Short Routes First</div><div class="mes-desc">Short domestic flights (90min) get runway before long-haul when possible.</div></div></div>
+      <div class="mes-card mes-srtf"><div class="mes-tag">SRTF</div><div><div class="mes-title">SRTF — Dynamic Reallocation</div><div class="mes-desc">Faster-to-depart flight preempts current one if it has shorter remaining prep time.</div></div></div>
+    </div>
+    <div class="two-col-layout">
+      <div class="content-card">
+        <div class="cc-head"><h3 class="cc-title">Runway Scheduler</h3></div>
+        <div class="ctrl-row">
+          <select class="fs" id="fsAlgo">
+            <option value="rr">Round Robin (Fair Slots)</option>
+            <option value="priority">Priority (Emergency First)</option>
+            <option value="sjf">SJF (Short Routes First)</option>
+            <option value="srtf">SRTF (Dynamic)</option>
+            <option value="fcfs">FCFS (Arrival Order)</option>
+            <option value="priority_pre">Priority Preemptive</option>
+          </select>
+          <input class="fi sm" type="number" id="fsQuantum" value="3" min="1" placeholder="Slot"/>
+          <button class="btn-sky" onclick="runFlightSchedule()">▶ Schedule</button>
+        </div>
+        <div class="flight-queue-table">
+          <div class="fqt-hdr"><span>Flight</span><span>Route</span><span>Duration</span><span>Priority</span><span>Status</span></div>
+          <div id="fqRows"></div>
+        </div>
+      </div>
+      <div class="content-card">
+        <div class="cc-head"><h3 class="cc-title">Runway Gantt Chart</h3></div>
+        <div class="runway-strip">🛫 RUNWAY 1 — Departure Timeline</div>
+        <div class="gantt-box" id="fsGantt"><p class="empty-t">Run scheduling to see runway allocation</p></div>
+        <div class="mstats mt" id="fsStats"></div>
+        <div class="table-wrap mt">
+          <table class="dtable"><thead><tr><th>Flight</th><th>Arrival</th><th>Duration</th><th>Departed</th><th>Delay</th><th>Wait</th></tr></thead>
+          <tbody id="fsResultTbody"><tr class="erow"><td colspan="6">No results</td></tr></tbody></table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ EMERGENCY ════════════════ -->
+<section class="page" id="page-emergency">
+  <div class="page-hero sm-hero red-hero">
+    <div class="ph-grid"></div>
+    <div class="sm-hero-content">
+      <h2 class="sm-title">Flight Delay & Emergency Management</h2>
+      <p class="sm-sub">Priority Preemptive handles emergencies instantly; SRTF resolves delays efficiently</p>
+      <div class="algo-tag-row danger-tags">
+        <span class="atag-red">Priority Pre</span><span class="atag-red">SRTF</span>
+        <span class="atag-red">Round Robin</span><span class="atag-red">Priority NP</span>
+      </div>
+    </div>
+  </div>
+  <div class="page-body">
+    <div class="emergency-alert" id="emergencyBanner">
+      <span class="ea-icon">🚨</span>
+      <span class="ea-text">Emergency Management System Active — All algorithms on standby</span>
+      <button class="btn-red sm" onclick="triggerEmergency()">⚡ Simulate Emergency</button>
+    </div>
+    <div class="module-explain-strip">
+      <div class="mes-card mes-pripre em-pulse"><div class="mes-tag red-tag">PRE</div><div><div class="mes-title">Priority Preemptive — Emergencies</div><div class="mes-desc">Emergency flight immediately preempts any running operation. Medical, security, weather handled instantly.</div></div></div>
+      <div class="mes-card mes-srtf"><div class="mes-tag">SRTF</div><div><div class="mes-title">SRTF — Delay Resolution</div><div class="mes-desc">Flight with shortest remaining delay resolved first. Minimises total delay across fleet.</div></div></div>
+      <div class="mes-card mes-rr"><div class="mes-tag">RR</div><div><div class="mes-title">Round Robin — Gate Reallocation</div><div class="mes-desc">Delayed flights share available gate slots equally. Each flight gets fair chance.</div></div></div>
+      <div class="mes-card mes-pri"><div class="mes-tag">PRI</div><div><div class="mes-title">Priority NP — Triage</div><div class="mes-desc">Medical (P1) › Technical (P2) › Weather (P3) › Crew (P4). Non-preemptive once started.</div></div></div>
+    </div>
+    <div class="two-col-layout">
+      <div class="content-card">
+        <div class="cc-head"><h3 class="cc-title">Add Emergency Event</h3></div>
+        <div class="em-btns">
+          <button class="em-btn p1" onclick="addEmergencyTask('MedEvac','Medical Evacuation',1,8)">🚑 Medical Evac</button>
+          <button class="em-btn p1" onclick="addEmergencyTask('SecThr','Security Threat',1,5)">🔒 Security</button>
+          <button class="em-btn p2" onclick="addEmergencyTask('TechFail','Technical Failure',2,6)">⚙ Technical</button>
+          <button class="em-btn p2" onclick="addEmergencyTask('WeaDvt','Weather Divert',2,4)">⛈ Weather</button>
+          <button class="em-btn p3" onclick="addEmergencyTask('FuelDly','Fuel Delay',3,3)">⛽ Fuel Delay</button>
+          <button class="em-btn p3" onclick="addEmergencyTask('CrewDly','Crew Delay',4,2)">👨‍✈️ Crew Delay</button>
+        </div>
+        <div class="ctrl-row mt">
+          <select class="fs" id="emAlgo">
+            <option value="priority_pre">Priority Preemptive (Recommended)</option>
+            <option value="priority">Priority NP — Triage</option>
+            <option value="srtf">SRTF — Shortest Delay</option>
+            <option value="rr">Round Robin — Gate Alloc</option>
+            <option value="fcfs">FCFS — Arrival Order</option>
+          </select>
+          <button class="btn-red" onclick="runEmergencySchedule()">▶ Dispatch</button>
+          <button class="btn-ghost sm danger" onclick="clearEmergencyTasks()">🗑</button>
+        </div>
+        <div class="table-wrap mt">
+          <table class="dtable"><thead><tr><th>Event</th><th>Priority</th><th>Time Needed</th></tr></thead>
+          <tbody id="emTaskTbody"><tr class="erow"><td colspan="3">Add events above</td></tr></tbody></table>
+        </div>
+      </div>
+      <div class="content-card">
+        <div class="cc-head"><h3 class="cc-title">Dispatch Timeline</h3></div>
+        <div class="gantt-box" id="emGantt"><p class="empty-t">Add events and dispatch to see timeline</p></div>
+        <div class="mstats mt" id="emStats"></div>
+        <div class="table-wrap mt">
+          <table class="dtable"><thead><tr><th>Event</th><th>Priority</th><th>Response</th><th>Waiting</th><th>Resolved</th></tr></thead>
+          <tbody id="emResultTbody"><tr class="erow"><td colspan="5">No results</td></tr></tbody></table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ ANALYTICS ════════════════ -->
+<section class="page" id="page-analytics">
+  <div class="page-hero sm-hero dark-hero">
+    <div class="ph-grid"></div>
+    <div class="sm-hero-content">
+      <h2 class="sm-title">Performance Analytics</h2>
+      <p class="sm-sub">Compare all 6 scheduling algorithms side by side</p>
+      <button class="btn-sky" onclick="loadComparison()">⚖ Compare All Algorithms</button>
+    </div>
+  </div>
+  <div class="page-body">
+    <div id="compareWrap" class="mb"><div class="content-card"><p class="empty-t">Click Compare All Algorithms</p></div></div>
+    <div class="chart-grid">
+      <div class="content-card"><div class="cc-head"><h3 class="cc-title">Avg Waiting Time</h3></div><canvas id="chartAWT" width="400" height="240"></canvas></div>
+      <div class="content-card"><div class="cc-head"><h3 class="cc-title">CPU Utilization %</h3></div><canvas id="chartCPU" width="400" height="240"></canvas></div>
+      <div class="content-card"><div class="cc-head"><h3 class="cc-title">Avg Turnaround Time</h3></div><canvas id="chartTAT" width="400" height="240"></canvas></div>
+      <div class="content-card"><div class="cc-head"><h3 class="cc-title">Throughput</h3></div><canvas id="chartTP" width="400" height="240"></canvas></div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ ADMIN ════════════════ -->
+<section class="page" id="page-admin">
+  <div class="page-hero sm-hero dark-hero">
+    <div class="ph-grid"></div>
+    <div class="sm-hero-content"><h2 class="sm-title">Admin Panel</h2></div>
+  </div>
+  <div class="page-body">
+    <div class="stats-strip" id="adminStats">
+      <div class="ss-card"><span class="ss-icon">👥</span><span class="ss-val" id="adm-users">—</span><span class="ss-lbl">Users</span></div>
+      <div class="ss-card"><span class="ss-icon">✈</span><span class="ss-val" id="adm-flights">—</span><span class="ss-lbl">Flights</span></div>
+      <div class="ss-card"><span class="ss-icon">🎫</span><span class="ss-val" id="adm-bookings">—</span><span class="ss-lbl">Bookings</span></div>
+      <div class="ss-card"><span class="ss-icon">💰</span><span class="ss-val" id="adm-revenue">—</span><span class="ss-lbl">Revenue</span></div>
+    </div>
+    <div class="content-card mt">
+      <div class="cc-head"><h3 class="cc-title">All Bookings</h3><button class="btn-ghost sm" onclick="loadAdminBookings()">↻ Load</button></div>
+      <div class="table-wrap">
+        <table class="dtable"><thead><tr><th>Ref</th><th>Passenger</th><th>Flight</th><th>Class</th><th>Price</th><th>Status</th></tr></thead>
+        <tbody id="adminBookingsTbody"><tr class="erow"><td colspan="6">Click Load</td></tr></tbody></table>
+      </div>
+    </div>
+    <div class="content-card mt">
+      <div class="cc-head"><h3 class="cc-title">Complaints</h3><button class="btn-ghost sm" onclick="loadAdminComplaints()">↻ Load</button></div>
+      <div class="table-wrap">
+        <table class="dtable"><thead><tr><th>Ticket</th><th>User</th><th>Category</th><th>Subject</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody id="adminCmpTbody"><tr class="erow"><td colspan="6">Click Load</td></tr></tbody></table>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ══ FOOTER ══ -->
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand"><span>✈</span> DataWing Airlines</div>
+    <div class="footer-text">CPU Scheduling Simulator · Node.js · MongoDB · Socket.IO · JWT</div>
+    <div class="footer-copy">© 2026 DataWing Airlines. University OS Project.</div>
+  </div>
+</footer>
+
+<!-- MODALS -->
+<div class="modal-bd hidden" id="loginModal">
+  <div class="modal-box">
+    <button class="modal-x" onclick="closeModal('loginModal')">✕</button>
+    <div class="modal-brand">✈ DataWing</div>
+    <h3 class="modal-title">Welcome Back</h3>
+    <div class="fg"><label class="fl">Email</label><input class="fi full" id="lgEmail" type="email" placeholder="you@email.com"/></div>
+    <div class="fg mt"><label class="fl">Password</label><input class="fi full" id="lgPass" type="password" placeholder="••••••"/></div>
+    <div id="lgError" class="errmsg"></div>
+    <button class="btn-sky full mt" onclick="login()">Login</button>
+    <p class="modal-sw">No account? <a onclick="switchModal('loginModal','registerModal')">Register</a></p>
+  </div>
+</div>
+
+<div class="modal-bd hidden" id="registerModal">
+  <div class="modal-box">
+    <button class="modal-x" onclick="closeModal('registerModal')">✕</button>
+    <div class="modal-brand">✈ DataWing</div>
+    <h3 class="modal-title">Create Account</h3>
+    <div class="fg"><label class="fl">Full Name</label><input class="fi full" id="rgName" placeholder="John Doe"/></div>
+    <div class="fg mt"><label class="fl">Email</label><input class="fi full" id="rgEmail" type="email" placeholder="you@email.com"/></div>
+    <div class="fg mt"><label class="fl">Password</label><input class="fi full" id="rgPass" type="password" placeholder="Min 6 characters"/></div>
+    <div class="fg mt"><label class="fl">Phone</label><input class="fi full" id="rgPhone" placeholder="+92 300 0000000"/></div>
+    <div id="rgError" class="errmsg"></div>
+    <button class="btn-sky full mt" onclick="register()">Create Account</button>
+    <p class="modal-sw">Have account? <a onclick="switchModal('registerModal','loginModal')">Login</a></p>
+  </div>
+</div>
+
+<div class="modal-bd hidden" id="addFlightModal">
+  <div class="modal-box wide">
+    <button class="modal-x" onclick="closeModal('addFlightModal')">✕</button>
+    <h3 class="modal-title">Add New Flight</h3>
+    <div class="form-grid-3">
+      <div class="fg"><label class="fl">Flight No</label><input class="fi full" id="af-num" placeholder="DW201"/></div>
+      <div class="fg"><label class="fl">Origin</label><input class="fi full" id="af-origin" placeholder="Karachi"/></div>
+      <div class="fg"><label class="fl">Destination</label><input class="fi full" id="af-dest" placeholder="Dubai"/></div>
+      <div class="fg"><label class="fl">Departure</label><input class="fi full" id="af-dep" type="datetime-local"/></div>
+      <div class="fg"><label class="fl">Arrival</label><input class="fi full" id="af-arr" type="datetime-local"/></div>
+      <div class="fg"><label class="fl">Seats</label><input class="fi full" id="af-seats" type="number" value="150"/></div>
+      <div class="fg"><label class="fl">Economy $</label><input class="fi full" id="af-eco" type="number" value="150"/></div>
+      <div class="fg"><label class="fl">Business $</label><input class="fi full" id="af-biz" type="number" value="450"/></div>
+      <div class="fg"><label class="fl">Priority</label><input class="fi full" id="af-pri" type="number" value="3" min="1" max="3"/></div>
+    </div>
+    <div id="afError" class="errmsg"></div>
+    <button class="btn-sky full mt" onclick="addFlight()">Add Flight</button>
+  </div>
+</div>
+
+<!-- CHATBOT -->
+<div class="chat-fab" onclick="toggleChat()">💬</div>
+<div class="chatbot hidden" id="chatbot">
+  <div class="chat-hd"><span>✈ DataWing AI</span><button onclick="toggleChat()">✕</button></div>
+  <div class="chat-msgs" id="chatMsgs"><div class="cmsg bot">Hello! Ask me about flights, scheduling algorithms, or any module!</div></div>
+  <div class="chat-inp"><input class="fi" id="chatInput" placeholder="Ask anything..." onkeydown="if(event.key==='Enter')sendChat()"/><button class="btn-sky sm" onclick="sendChat()">→</button></div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

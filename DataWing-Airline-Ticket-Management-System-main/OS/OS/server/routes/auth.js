@@ -1,0 +1,11 @@
+const express = require('express');
+const r = express.Router();
+const c = require('../controllers/authController');
+const { protect } = require('../middleware/auth');
+const { authLimiter } = require('../middleware/rateLimiter');
+const { body } = require('express-validator');
+r.post('/register', authLimiter, [body('name').notEmpty(), body('email').isEmail(), body('password').isLength({min:6})], c.register);
+r.post('/login',    authLimiter, c.login);
+r.get('/profile',   protect, c.getProfile);
+r.put('/profile',   protect, c.updateProfile);
+module.exports = r;
